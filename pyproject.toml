@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bank-parser-engine"
+version = "0.1.0"
+description = "Bank narrative parsing and canonical key engine"
+requires-python = ">=3.9"
+
+dependencies = [
+    "rapidfuzz>=3.0"
+]
+
+[tool.setuptools]
+packages = [
+    "key_engine",
+    "parsers",
+    "parsers.ach",
+    "parsers.wire",
+    "parsers.swift",
+    "parsers.all"
+]

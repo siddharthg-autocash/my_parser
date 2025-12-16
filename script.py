@@ -17,7 +17,7 @@ def parse(narr: str):
     fmt = detect_format(rewritten_narr)
 
     if(hitl): routine1(hitl,fmt)
-
+    # print(narr)
     print(f'format identified: {fmt}')
 
     if fmt == 'wire':
@@ -37,6 +37,6 @@ if __name__ == '__main__':
     narr,fmt = parse(narr)
     val = json.dumps(narr, indent=3)
     print(val)
-    routine2('appended','BBK',fmt)
+    # routine2('appended','FED. REF. NO.',fmt)
     # routine2('appended','B/O BANK',fmt)
     # routine2('appended','REC FROM',fmt)

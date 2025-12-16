@@ -32,8 +32,8 @@
     "mrn seq"
   ],
   "fed reference": [
-    "fed ref",
     "fed ref no",
+    "fed ref",
     "fed ref.",
     "fed imad",
     "imad"
@@ -296,6 +296,8 @@
     "rec g fp",
     "cust name",
     "bbi",
-    "bbk"
+    "bbk",
+    "transaction ref. no.",
+    "fed. ref. no."
   ]
 }

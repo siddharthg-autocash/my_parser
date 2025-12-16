@@ -116,5 +116,19 @@ def ach_parser(narr: str):
     return v2
 
 if __name__ == "__main__":
-    pass
+    # eg1.
+    print(json.dumps(
+        ach_parser("ORIG CO NAME=36 TREAS 310,ORIG ID=9101036151,DESC DATE=051425,ENTRY DESCR=MI SC PAY,ENTRY CLASS=CTX,TRACE NO=101036159719236,ENTRY DATE=250514,IND ID NO= 596012065360012,IND NAME=0017NORTH BROWARD HO,ORIG BANK=10103615"),
+        indent=2
+    ))
 
+    # eg2.
+    # print(json.dumps(
+    #     ach_parser(
+    #         "ACH Settlement TRANS TYPE=PPD SENDING CO. NAME=REALMANAGE LLC COMPANY ID=GENERATED "
+    #         "DESCRIPTION=ACH OFFSET EFFECTIVE DATE=250502 RECV.ID NO=-SETT-ISOACHORG "
+    #         "RECV. NAME=REALMANAG DISCRETIONARY DATA=04 TRACE NUMBER=025122004008569"
+    #     ),
+    #     indent=2
+    # ))
+    pass

@@ -42,24 +42,43 @@ def routine2(canonical_key: str, val_name: str, fmt: str, inline: bool = False):
         _append_to_keys_py(all_keys_path, val_upper, inline)
 
 
-
 def _append_to_keys_py(keys_path: Path, val_upper: str, inline: bool):
     lines = keys_path.read_text(encoding="utf-8").splitlines()
     target = "INLINE_KEYS" if inline else "KEYS"
 
-    # ✅ EXACT match check (not substring)
-    for line in lines:
-        token = line.strip().strip(",").strip('"')
-        if token == val_upper:
-            return  # already present
+    start = end = None
 
-    # find the correct list and append
+    # locate list boundaries
     for i, line in enumerate(lines):
-        if line.strip().startswith(target):
-            for j in range(i + 1, len(lines)):
-                if lines[j].strip() == "]":
-                    lines.insert(j, f'    "{val_upper}",')
-                    keys_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-                    return
+        if line.strip().startswith(f"{target}"):
+            start = i
+            continue
+        if start is not None and line.strip() == "]":
+            end = i
+            break
 
-    raise RuntimeError(f"{target} list not found in {keys_path}")
+    if start is None or end is None:
+        raise RuntimeError(f"{target} list not found in {keys_path}")
+
+    # extract existing values
+    values = []
+    for line in lines[start + 1 : end]:
+        token = line.strip().strip(",").strip('"')
+        if token:
+            values.append(token)
+
+    # exact duplicate check
+    if val_upper in values:
+        return
+
+    # add + sort (DESC by length, then alpha)
+    values.append(val_upper)
+    values.sort(key=lambda x: (-len(x), x))
+
+    # rebuild file
+    new_lines = lines[: start + 1]
+    for v in values:
+        new_lines.append(f'    "{v}",')
+    new_lines.extend(lines[end:])
+
+    keys_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")

@@ -1,9 +1,18 @@
 import re
 
-def normalize_spaces(text):
-    # add spaces around delimiters
-    text = re.sub(r"\s*([:,=;#])\s*", r" \1 ", text)
+def normalize_spaces(text: str) -> str:
+    text = text.replace('.','')
+    text = text.replace(',',' ')
+
+    # add space BEFORE delimiter if missing
+    text = re.sub(r"(?<!\s)([:,=;#])", r" \1", text)
+
+    # add space AFTER delimiter if missing
+    text = re.sub(r"([:,=;#])(?!\s)", r"\1 ", text)
+
+    # collapse extra spaces
     return " ".join(text.split())
+
 
 
 # ===================================

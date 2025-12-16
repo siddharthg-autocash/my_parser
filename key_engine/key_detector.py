@@ -84,16 +84,37 @@ class KeyDetector:
 
     
     # DELIMITER CHECK
-    
     def _has_delimiter_after(self, text: str, end: int) -> bool:
-    # allow punctuation + spaces before ':' or '='
-        return bool(re.match(r"[.\s]*[:=]", text[end:]))
+        tail = text[end:]
+
+        i = 0
+        while i < len(tail) and tail[i].isspace():
+            i += 1
+
+        # delimiter immediately → OK
+        if i < len(tail) and tail[i] in ":=":
+            return True
+
+        # word continues → NOT a key end
+        if i < len(tail) and tail[i].isalnum():
+            return False
+
+        # skip punctuation, but stop on word
+        while i < len(tail):
+            if tail[i] in ":=":
+                return True
+            if tail[i].isalnum():
+                return False
+            i += 1
+
+        return False
+
+
 
 
 
     
     # MATCH WINDOWS AGAINST CANONICAL VARIANTS
-    
     def _match_windows(self, text, windows):
         candidates = []
 
@@ -103,56 +124,61 @@ class KeyDetector:
 
             phrase_clean = self._clean(phrase)
 
-            best_key = None
+            best_variant = None
             best_score = 0
 
             for canon, variant in self.match_keys:
                 score = fuzz.ratio(phrase_clean, self._clean(variant))
-
                 if score >= self.threshold and score > best_score:
-                    best_key = variant
+                    best_variant = variant
                     best_score = score
 
-            if best_key:
+            if best_variant:
                 candidates.append({
                     "raw": phrase,
-                    "canonical": best_key,
+                    "canonical": best_variant,      # ✅ still VARIANT
                     "score": best_score,
                     "start": start,
-                    "end": end
+                    "end": end,
+                    "tokens": len(phrase.split())   # ✅ ADD THIS
                 })
 
         return candidates
 
+
     
     # CONFLICT RESOLUTION
-    
     def _resolve_conflicts(self, candidates):
-        candidates.sort(key=lambda c: (c["start"], -(c["end"] - c["start"])))
+        # sort by start, then prefer more tokens
+        candidates.sort(key=lambda c: (c["start"], -c["tokens"]))
+
         accepted = []
 
         for c in candidates:
             keep = True
+
             for a in accepted[:]:
-                if not (c["end"] <= a["start"] or c["start"] >= a["end"]):
-
-                    if c["canonical"] == a["canonical"]:
-                        if c["score"] > a["score"]:
-                            accepted.remove(a)
-                        else:
-                            keep = False
-                        break
-
-                    if len(c["canonical"]) > len(a["canonical"]):
+                # SAME START → longest phrase wins
+                if c["start"] == a["start"]:
+                    if c["tokens"] > a["tokens"]:
                         accepted.remove(a)
                     else:
                         keep = False
-                        break
+                    break
+
+                # overlapping spans → longest phrase wins
+                if not (c["end"] <= a["start"] or c["start"] >= a["end"]):
+                    if c["tokens"] > a["tokens"]:
+                        accepted.remove(a)
+                    else:
+                        keep = False
+                    break
 
             if keep:
                 accepted.append(c)
 
         return accepted
+
 
     
     # REWRITE TEXT
@@ -289,3 +315,14 @@ class KeyDetector:
 
         return hitl
 
+
+
+
+
+if __name__ == "__main__":
+    kd = KeyDetector()
+
+    text = "TRANSA CTIO N REF. NO.:251201535720FED. R E F. NO.:1201MMQFMPYZ001514"
+    rewritten, hitl = kd.rewrite(text)
+
+    print("FINAL:", rewritten)

@@ -289,14 +289,3 @@ class KeyDetector:
 
         return hitl
 
-
-
-
-
-if __name__ == "__main__":
-    kd = KeyDetector()
-
-    text = "TRANSA CTIO N REF. NO.:251201535720FED. R E F. NO.:1201MMQFMPYZ001514"
-    rewritten, hitl = kd.rewrite(text)
-
-    print("FINAL:", rewritten)

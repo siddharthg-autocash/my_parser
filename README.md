@@ -128,7 +128,7 @@ python script.py
 ```python
 from script import parse
 
-parsed, fmt = parse("AC-PROVIDENCE CONDO-VENDORPYMT RMR*IV*00028797**50.00\")
+parsed, fmt = parse("AC-PROVIDENCE xyz-VENDORPYMT RMR*IV*00000000**00.00\")
 print(parsed)   # dict
 print(fmt)      # format / type label
 ```

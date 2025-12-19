@@ -13,12 +13,13 @@ DIRECT_DEBIT_RE = re.compile(
     \b(
         DIRECT\s+DEB(IT)? |
         DIRECT\s+DEBIT |
-        DEB\s+ |
+        PAYMENT |
         PYMT |
-        PURCHASE |
-        BENEFITS |
-        INS\s+CO |
-        INSURANCE
+        WITHDRAW(AL)? |
+        AUTO(PAY)? |
+        SUBSCRIPT(ION)? |
+        MEMBERSHIP |
+        RENT
     )\b
     """,
     re.VERBOSE
@@ -62,7 +63,7 @@ def parse_direct_debit(line: str) -> dict:
     # Heuristic: counterparty = leading alpha block before debit keywords
     counterparty_parts = []
     for t in tokens:
-        if t in {"DIRECT", "DEBIT", "DEB", "PYMT", "PURCHASE"}:
+        if t in {"DIRECT", "DEBIT", "DEB", "PYMT", "PAYMENT", "PURCHASE"}:
             break
         counterparty_parts.append(t)
 
@@ -76,3 +77,7 @@ def parse_direct_debit(line: str) -> dict:
         "REFERENCE_IDS": refs,
         "RAW": norm
     }
+
+import json
+if __name__=='__main__':
+    print(json.dumps(parse_direct_debit(input()),indent=4))

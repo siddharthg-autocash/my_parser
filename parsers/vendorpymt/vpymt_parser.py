@@ -56,15 +56,14 @@ VENDORPYMT_RMR_PARSE_RE = re.compile(
     ^
     (?P<COUNTERPARTY_NAME>.+?)
     [\s\-]*
-    VENDORPYMT\s*RMR(?:\*IV\*|IV)
-    (?P<INVOICE_NO>[A-Z0-9]+)
+    VENDORPYMT\s*RMR(?:\*IV\*)
+    (?P<INVOICE_NO>(?:[A-Z0-9]+\s?)+)
     \*\*
     (?P<AMOUNT>(?:\d+\s+)?\d+(?:\.\d{2})?)
-    (?:\\\d+)? 
-    $
     """,
     re.VERBOSE
 )
+
 
 
 VENDORPYMT_REMIT_PARSE_RE = re.compile(
@@ -92,7 +91,6 @@ AMOUNT_RE  = re.compile(r"\*\*\s*([\d ]+(?:\.\d{2})?)")
 # ---------------------------------------------------------
 def parse_vendor_payment_rmr(line: str) -> dict:
     norm = normalize_narrative(line).rstrip("\\")
-
     m = VENDORPYMT_RMR_PARSE_RE.search(norm)
     if not m:
         return {
@@ -101,18 +99,21 @@ def parse_vendor_payment_rmr(line: str) -> dict:
         }
 
     raw_amt = m.group("AMOUNT").replace(" ", "")
-
     if "." not in raw_amt and len(raw_amt) > 2:
         amt = f"{int(raw_amt[:-2])}.{raw_amt[-2:]}"
     else:
         amt = raw_amt
 
+    invoice_ids = m.group("INVOICE_NO").split()
+
     return {
         "COUNTERPARTY_NAME": m.group("COUNTERPARTY_NAME").rstrip("- "),
         "TRANS_TYPE": "VENDOR_PAYMENT_RMR",
-        "INVOICE_NO": m.group("INVOICE_NO"),
+        "INVOICE_NO": invoice_ids,
         "AMOUNT": amt,
+        "RAW": norm
     }
+
 
 
 def parse_vendor_payment_remittance(line: str) -> dict:

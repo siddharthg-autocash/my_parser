@@ -12,17 +12,21 @@ def normalize_narrative(line: str) -> str:
 
 PROCESSOR_EFT_RECOGNISE_RE = re.compile(
     r"""
-    \b
-    (?P<proc>[A-Z]{2,6})EFT      # processor code (RPI, YDI, APF, etc.)
+    ^
+    (?P<proc>[A-Z][A-Z0-9 .,&'-]{0,60}?)            # processor name
     \s+
-    (?P<date>\d{6})              # YYMMDD
-    \s+
-    (?P<ref>[A-Z0-9]{6,})        # reference
-    (?:\s+(?P=ref))?             # optional repeated ref
-    \b
+    (?P<code>[A-Z]{1,6})                            # code letters
+    (?P<id>\d{3,9})?                                # optional numeric id
+    (?P<date>\d{6})?                                # optional merged date
+    (?:\s+(?P<date2>\d{6}))?                        # optional spaced date
+    \s*
+    (?P<refs>.*)                                    # refs can begin immediately
+    $
     """,
     re.VERBOSE
 )
+
+
 
 def is_processor_eft(line: str) -> bool:
     norm = normalize_narrative(line)
@@ -30,8 +34,13 @@ def is_processor_eft(line: str) -> bool:
         return False
 
     # hard guards — do NOT collide with rails
-    if any(k in norm for k in ("ACH", "WIRE", "FED", "RDC", "CARD", "TRN*", "RMR*")):
-        return False
+    if (
+    "ACH" in norm
+    or "WIRE" in norm
+    or "FED" in norm
+    or "RDC" in norm
+    or re.search(r"\bCARD\b", norm)): return False
+
 
     return bool(PROCESSOR_EFT_RECOGNISE_RE.search(norm))
 
@@ -45,12 +54,20 @@ def parse_processor_eft(line: str) -> dict:
             "ERROR": "PROCESSOR_EFT_PARSE_FAILED"
         }
 
+    # Split references by comma or space, remove empty entries
+    ref_block = m.group("refs")
+    refs = re.split(r"[\s,]+", ref_block)
+    refs = [r for r in refs if r]
+
     return {
         "TRANS_TYPE": "PROCESSOR_EFT",
-        "PROCESSOR_CODE": m.group("proc"),
+        "PROCESSOR_NAME": m.group("proc").strip(),
+        "PROCESSOR_CODE": m.group("code"),
         "DATE": m.group("date"),
-        "REFERENCE": m.group("ref")
+        "REFERENCE_IDS": refs,
+        "RAW": norm
     }
 
+import json
 if __name__=='__main__':
-    print(parse_processor_eft(input()))
+    print(json.dumps(parse_processor_eft(input()),indent=4))

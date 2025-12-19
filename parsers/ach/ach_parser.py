@@ -91,6 +91,8 @@ def ach_parser_v1(narr: str):
 
     idx = [0] + list(marks.keys()) + [len(narr)]
     out = {}
+    
+    # print(marks)
 
     out["Meta"] = narr[:idx[1]].strip()
 

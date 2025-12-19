@@ -43,42 +43,44 @@ def routine2(canonical_key: str, val_name: str, fmt: str, inline: bool = False):
 
 
 def _append_to_keys_py(keys_path: Path, val_upper: str, inline: bool):
-    lines = keys_path.read_text(encoding="utf-8").splitlines()
+    text = keys_path.read_text(encoding="utf-8")
     target = "INLINE_KEYS" if inline else "KEYS"
 
-    start = end = None
-
-    # locate list boundaries
-    for i, line in enumerate(lines):
-        if line.strip().startswith(f"{target}"):
-            start = i
-            continue
-        if start is not None and line.strip() == "]":
-            end = i
-            break
-
-    if start is None or end is None:
+    start = text.find(f"{target} = [")
+    if start == -1:
         raise RuntimeError(f"{target} list not found in {keys_path}")
 
-    # extract existing values
+    open_bracket = text.find("[", start)
+    close_bracket = text.find("]", open_bracket)
+
+    if open_bracket == -1 or close_bracket == -1:
+        raise RuntimeError(f"Malformed {target} list in {keys_path}")
+
+    # extract list body
+    body = text[open_bracket + 1 : close_bracket]
+
+    # parse values
     values = []
-    for line in lines[start + 1 : end]:
-        token = line.strip().strip(",").strip('"')
-        if token:
-            values.append(token)
+    for item in body.split(","):
+        item = item.strip().strip("'").strip('"')
+        if item:
+            values.append(item)
 
-    # exact duplicate check
-    if val_upper in values:
-        return
+    # add if missing
+    if val_upper not in values:
+        values.append(val_upper)
 
-    # add + sort (DESC by length, then alpha)
-    values.append(val_upper)
-    values.sort(key=lambda x: (-len(x), x))
+    # dedupe + sort DESC by length
+    values = sorted(set(values), key=lambda x: (-len(x), x))
 
-    # rebuild file
-    new_lines = lines[: start + 1]
+    # rebuild list (pretty)
+    rebuilt = f"{target} = [\n"
     for v in values:
-        new_lines.append(f'    "{v}",')
-    new_lines.extend(lines[end:])
+        rebuilt += f'    "{v}",\n'
+    rebuilt += "]"
 
-    keys_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    # replace old list
+    new_text = text[:start] + rebuilt + text[close_bracket + 1 :]
+
+    keys_path.write_text(new_text, encoding="utf-8")
+

@@ -109,10 +109,6 @@ class KeyDetector:
 
         return False
 
-
-
-
-
     
     # MATCH WINDOWS AGAINST CANONICAL VARIANTS
     def _match_windows(self, text, windows):
@@ -124,33 +120,40 @@ class KeyDetector:
 
             phrase_clean = self._clean(phrase)
 
-            best_variant = None
+            best_canon = None
             best_score = 0
 
             for canon, variant in self.match_keys:
                 score = fuzz.ratio(phrase_clean, self._clean(variant))
                 if score >= self.threshold and score > best_score:
-                    best_variant = variant
+                    best_canon = variant
                     best_score = score
 
-            if best_variant:
+            if best_canon:
                 candidates.append({
                     "raw": phrase,
-                    "canonical": best_variant,      # ✅ still VARIANT
+                    "canonical": best_canon,   
                     "score": best_score,
                     "start": start,
                     "end": end,
-                    "tokens": len(phrase.split())   # ✅ ADD THIS
+                    "tokens": len(phrase.split())
                 })
-
+        # print(json.dumps(candidates,indent=3))
         return candidates
+
 
 
     
     # CONFLICT RESOLUTION
     def _resolve_conflicts(self, candidates):
-        # sort by start, then prefer more tokens
-        candidates.sort(key=lambda c: (c["start"], -c["tokens"]))
+        """
+        Conflict resolution rules:
+        1. Higher fuzzy score wins
+        2. If score ties, longer (more tokens) wins
+        """
+
+        # sort by start position only (grouping purpose)
+        candidates.sort(key=lambda c: c["start"])
 
         accepted = []
 
@@ -158,26 +161,38 @@ class KeyDetector:
             keep = True
 
             for a in accepted[:]:
-                # SAME START → longest phrase wins
-                if c["start"] == a["start"]:
-                    if c["tokens"] > a["tokens"]:
-                        accepted.remove(a)
-                    else:
-                        keep = False
+                overlap = not (c["end"] <= a["start"] or c["start"] >= a["end"])
+
+                if not overlap:
+                    continue
+
+                # -------- conflict detected --------
+
+                # Rule 1: higher score wins
+                if c["score"] > a["score"]:
+                    accepted.remove(a)
+                    continue
+
+                if c["score"] < a["score"]:
+                    keep = False
                     break
 
-                # overlapping spans → longest phrase wins
-                if not (c["end"] <= a["start"] or c["start"] >= a["end"]):
-                    if c["tokens"] > a["tokens"]:
-                        accepted.remove(a)
-                    else:
-                        keep = False
+                # Rule 2: score tie → more tokens wins
+                if c["tokens"] > a["tokens"]:
+                    accepted.remove(a)
+                    continue
+                else:
+                    keep = False
                     break
 
             if keep:
                 accepted.append(c)
 
+        # optional debug
+        # print(json.dumps(accepted, indent=2))
+
         return accepted
+
 
 
     
@@ -316,13 +331,8 @@ class KeyDetector:
         return hitl
 
 
-
-
-
-if __name__ == "__main__":
+if __name__=='__main__':
     kd = KeyDetector()
-
-    text = "TRANSA CTIO N REF. NO.:251201535720FED. R E F. NO.:1201MMQFMPYZ001514"
-    rewritten, hitl = kd.rewrite(text)
-
-    print("FINAL:", rewritten)
+    rewritten, hitl = kd.rewrite(
+    "TRANS TYPE = CCD SENDING CO NAME = APPLIED SYSTEMS COMPANY ID = 8263863381")
+    print(rewritten)

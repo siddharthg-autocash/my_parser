@@ -9,7 +9,7 @@ except ModuleNotFoundError:
 
 KEYS = sorted(set(KEYS), key=len, reverse=True)
 INLINE_KEYS = sorted(INLINE_KEYS, key=len, reverse=True)
-ALLOWED = {' ', ':', '=', '/', '\\', '-', '_',',','-'}
+ALLOWED = {' ', ':', '=', '/', '\\', '_',','}
 
 # COMMON HELPERS
 

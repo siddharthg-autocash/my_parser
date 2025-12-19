@@ -13,11 +13,11 @@
     "sender ref",
     "sndr ref",
     "ref no",
-    "ref. no.",
+    "ref no",
     "transaction ref",
     "transaction ref no",
-    "transaction ref. no",
-    "transaction ref. no.",
+    "transaction ref no",
+    "transaction ref no",
     "return ref",
     "related ref",
     "creditor ref",
@@ -34,7 +34,7 @@
   "fed reference": [
     "fed ref no",
     "fed ref",
-    "fed ref.",
+    "fed ref",
     "fed imad",
     "imad"
   ],
@@ -156,7 +156,7 @@
   ],
   "sender": [
     "sender name",
-    "sending co. name",
+    "sending co name",
     "sender account",
     "sender ac",
     "sender address",
@@ -201,7 +201,7 @@
     "orig co name",
     "company data",
     "company discretionary data",
-    "co. discr. data",
+    "co discr data",
     "discretionary data"
   ],
   "description": [
@@ -297,7 +297,27 @@
     "cust name",
     "bbi",
     "bbk",
-    "transaction ref. no.",
-    "fed. ref. no."
+    "transaction ref no",
+    "fed ref no"
+  ],
+  "parsed": [
+    "customer name",
+    "class code",
+    "recv id no",
+    "payer",
+    "dr bnk",
+    "cr bnk",
+    "db bnk",
+    "instg bnk",
+    "addr",
+    "cty",
+    "ctry",
+    "from acct",
+    "invoice",
+    "disbursement",
+    "ibk",
+    "rfb",
+    "tcn",
+    "sett"
   ]
 }

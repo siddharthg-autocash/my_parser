@@ -1,95 +1,151 @@
-# Bank Parser Engine
+# Bank Parser Engine  
 
-A rule-based engine to **standardize and parse unstructured bank transaction narratives**
-(ACH, WIRE, SWIFT, like formats).
-
----
-
-## High-level flow
-
-1. **Input**: Raw transaction narrative (string)
-2. **Normalization**:
-   - Lowercasing
-   - Whitespace normalization
-   - Space insertion around delimiters (`: , = ; #`)
-3. **Canonical key detection**:
-   - Sliding window matching
-   - Fuzzy matching against known variants
-4. **Conflict resolution**:
-   - Resolves overlaps
-   - Prefers longer / higher-confidence matches
-5. **Narrative rewrite**:
-   - Replaces raw keys with canonical keys
-6. **HITL trigger (only if needed)**:
-   - Detects *new semantic keys only*
-   - Ignores suffix fragments, numeric junk, value tokens
-7. **Format detection**:
-   - ACH / WIRE / SWIFT / fallback
-8. **Format-specific parsing**:
-   - Extracts structured fields into JSON
-9. **Schema evolution (optional)**:
-   - Approved keys are appended to:
-     - `canonical_keys.json`
-     - `parsers/{fmt}/keys.py`
-     - `parsers/all/keys.py`
+A deterministic, rule-based engine that normalizes and parses unstructured bank transaction narratives into structured JSON.  
+Supports real-world formats including ACH, WIRE, SWIFT, vendor payments, processor EFT, PayPal, disbursements, funds transfers, direct debits, invoices, web/card payments, merchant references, and more.
 
 ---
 
-## What the system intentionally avoids
-
-- Blind ML extraction
-- Auto-learning without human approval
-- Polluting schema with fragments like `NAME`, `ID`, `11`
-- Overwriting or guessing values
-- Non-deterministic behavior
-
----
-
-## Project structure
+## 📂 Project Structure  
 
 ```
-.
-├── script.py
-├── util.py
-├── routines.py
+│   README.md
+│   routines.py                     # HITL + schema evolution
+│   script.py                       # CLI + programmatic entry
+│   util.py                         # Normalization + helpers
 │
-├── key_engine/
-│   ├── key_detector.py
-│   └── canonical_keys.json
+├───key_engine
+│       canonical_keys.json         # Persisted semantic keys
+│       key_detector.py             # Canonical key recognizer
 │
-├── parsers/
-│   ├── ach/
-│   ├── wire/
-│   ├── swift/
-│   └── all/
+├───parsers
+│   │   __init__.py
+│   │
+│   ├───ach
+│   │       ach_parser.py
+│   │       keys.py
+│   │       __init__.py
+│   │
+│   ├───all
+│   │       all_parser.py
+│   │       keys.py
+│   │       __init__.py
+│   │
+│   ├───avidpay
+│   │       avidp_check_parser.py
+│   │       avidp_gen_parser.py
+│   │
+│   ├───directdebit
+│   │       directdeb.py
+│   │
+│   ├───disbursement
+│   │       disb_parser.py
+│   │
+│   ├───fundsTransfer
+│   │       fundsTrans_parser.py
+│   │
+│   ├───merchref
+│   │       merch_ref_parser.py
+│   │
+│   ├───misc
+│   │       cardp.py
+│   │       invo.py
+│   │       webt.py
+│   │
+│   ├───paypal
+│   │       paypal.py
+│   │
+│   ├───processor_eft
+│   │       peft.py
+│   │
+│   ├───remittance
+│   │       remi.py
+│   │
+│   ├───swift
+│   │       swift_parser.py
+│   │       keys.py
+│   │
+│   ├───vendorpay
+│   │       vp_parser.py
+│   │
+│   ├───vendorpymt
+│   │       vpymt_parser.py
+│   │
+│   ├───wire
+│   │       wire_parser.py
+│   │       keys.py
+│   │
+│   └───__init__.py (cache files omitted)
 │
-└── pyproject.toml
+└───__pycache__ (auto-generated, ignored)
 ```
 
 ---
 
-## How to run
+## 🧠 What It Does  
 
-### Install
+### 1️⃣ Normalize  
+Every narrative string is cleaned, standardized, and made regex-safe:  
+- Trim leading/trailing punctuation + pipes  
+- Collapse multi-spaces  
+- Uppercase everything  
+- Normalize delimiter spacing around `: , = ; # \`  
+- Remove narrative noise  
 
+### 2️⃣ Identify  
+Regex-based classifier determines narrative family:
+
+- Vendor payment (RMR, remit, invoice, generic vendor)
+- ACH / WIRE / SWIFT scoring
+- PayPal (RDC, ACH return, general)
+- Processor EFT
+- Direct debit
+- Merchant reference
+- Web transfer
+- Card processor
+- Funds transfer
+- Disbursement
+- Invoice reference
+- Unknown fallback (META)
+
+### 3️⃣ Parse  
+Format-aware extractors return structured JSON.  
+
+---
+
+## 🚀 Quick Start  
+
+### Install  
 ```bash
 pip install -e .
 ```
 
-### Run
-
+### CLI  
 ```bash
 python script.py
 ```
 
-### Programmatic usage
-
+### Programmatic  
 ```python
 from script import parse
-output, fmt = parse(narrative)
+
+parsed, fmt = parse("AC-PROVIDENCE CONDO-VENDORPYMT RMR*IV*00028797**50.00\")
+print(parsed)   # dict
+print(fmt)      # format / type label
 ```
 
 ---
+
+## 📘 Normalization Guarantees  
+
+- `"   abc   "` → `"ABC"`
+- `"\,|ABC|,,"` → `"ABC"`
+- `"A  B   C"` → `"A B C"`
+- `"ABC:123"` → `"ABC : 123"`
+- `"abc\def"` → `"ABC \ DEF"`
+
+---
+
+
 
 ## HITL behavior
 
@@ -100,7 +156,6 @@ output, fmt = parse(narrative)
 - Future runs auto-detect the key
 
 ---
-
 ## Future work
 
 ### Value cleaning (post-parsing)
@@ -114,3 +169,6 @@ output, fmt = parse(narrative)
 ## One-line summary
 
 A deterministic, human-in-the-loop engine to standardize and parse bank transaction narratives while safely evolving its schema. 
+
+## 📞 Maintainer  
+Siddharth  

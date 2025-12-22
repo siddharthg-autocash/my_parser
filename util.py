@@ -15,6 +15,7 @@ from parsers.paypal.paypal import classify_paypal
 from parsers.processor_eft.peft import is_processor_eft
 from parsers.directdebit.directdeb import is_direct_debit
 
+from parsers.spanish_types.spanish import is_spanish
 
 def normalize_spaces(text: str) -> str:
     
@@ -64,6 +65,9 @@ def normalize_narrative(line: str) -> str:
 
 def preClassify(text: str) -> str:
     
+    if is_spanish(text)!=None:
+        return 'spanish'
+
     if classify_paypal(text)!=None:
         return classify_paypal(text) 
     

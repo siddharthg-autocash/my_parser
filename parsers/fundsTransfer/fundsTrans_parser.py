@@ -12,10 +12,15 @@ def normalize_narrative(line: str) -> str:
 
 
 # ---------------------------------------------------------
-# 2. IDENTIFICATION REGEX
+# 2. IDENTIFICATION REGEX (FUNDS + SWEEP)
 # ---------------------------------------------------------
+# Recognises:
+# - FUNDS TRANSFER TO ACCT xxxx
+# - FUNDS TRANSFER FROM ACCOUNT xxxx
+# - SWEEP TRANSFER FROM INVESTMENT ACCT xxxx
+# - SWEEP TRANSFR TO ACCT xxxx
 FUNDS_TRANSFER_FRMDEP_RECOGNISE_RE = re.compile(
-    r"^REF\s+\w+\s+FUNDS\s+TRANSFER\s+FRMDEP\s+\S+\s+FROM\s+.+$"
+    r"\b(?:FUNDS|SWEEP)\s+TRANSF(?:ER|R)\b.*\b(FROM|TO)\s+(?:INVESTMENT\s+)?(?:ACCT|ACCOUNT)\b"
 )
 
 
@@ -27,20 +32,27 @@ def is_funds_transfer_frmdep(line: str) -> bool:
 
 
 # ---------------------------------------------------------
-# 3. PARSING REGEX
+# 3. PARSING REGEX (SUPPORTS ALL VARIANTS)
 # ---------------------------------------------------------
 FUNDS_TRANSFER_FRMDEP_PARSE_RE = re.compile(
     r"""
-    ^REF\s+(?P<REF_NO>\w+)\s+
-    FUNDS\s+TRANSFER\s+FRMDEP\s+
-    (?P<FROM_ACCOUNT>\S+)\s+
-    FROM\s+(?P<FROM_ENTITY>.+)
+    (?:REF\s+(?P<REF_NO>\w+)\s+)?                 # optional REF
+    (?:FUNDS|SWEEP)\s+TRANSF(?:ER|R)\s+
+    (?:FRMDEP\s+)?                                # optional FRMDEP
+    (?:
+        FROM\s+(?:INVESTMENT\s+)?(?:ACCT|ACCOUNT)\s+(?P<FROM_ACCOUNT>\S+) |
+        TO\s+(?:INVESTMENT\s+)?(?:ACCT|ACCOUNT)\s+(?P<TO_ACCOUNT>\S+)
+    )
+    (?:\s+FROM\s+(?P<FROM_ENTITY>.+))?            # optional entity
     $
     """,
     re.VERBOSE
 )
 
 
+# ---------------------------------------------------------
+# 4. PARSER (FACTS ONLY — NO PAYER/PAYEE)
+# ---------------------------------------------------------
 def parse_funds_transfer_frmdep(line: str) -> dict:
     norm = normalize_narrative(line)
 
@@ -48,9 +60,27 @@ def parse_funds_transfer_frmdep(line: str) -> dict:
     if not match:
         return {}
 
-    return {
-        "REF_NO": match.group("REF_NO"),
-        "TRANS_TYPE": "FUNDS_TRANSFER_FRMDEP",
-        "FROM_ACCOUNT": match.group("FROM_ACCOUNT"),
-        "ENTITY": match.group("FROM_ENTITY"),
+    from_acct = match.group("FROM_ACCOUNT")
+    to_acct = match.group("TO_ACCOUNT")
+
+    out = {
+        "TRANS_TYPE": "Internal Funds Transfer"
     }
+
+    if match.group("REF_NO"):
+        out["REF_NO"] = match.group("REF_NO")
+
+    # FROM ACCT → ORIG (account number allowed)
+    if from_acct:
+        out["FROM_ACCOUNT"] = from_acct
+        out["ORIG"] = from_acct
+
+    # TO ACCT → BNF (account number allowed)
+    if to_acct:
+        out["TO_ACCOUNT"] = to_acct
+        out["BNF"] = to_acct
+
+    if match.group("FROM_ENTITY"):
+        out["ENTITY"] = match.group("FROM_ENTITY")
+
+    return out

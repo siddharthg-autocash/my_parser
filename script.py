@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from additionalFmts import route_to_additional_format
+from extract_payer_payee import extract_payor_payee
 
 key_detector = KeyDetector()
 
@@ -21,12 +22,10 @@ def parse(narr: str):
     fmt = detect_format(narr)
     print(f"\nFORMAT IDENTIFIED: {fmt}")
 
-    # NEW → routed formats handled externally
     parsed, routed_fmt = route_to_additional_format(fmt, narr)
     if routed_fmt:
         return parsed, routed_fmt
-
-    # existing fallback logic stays exactly the same
+    
     narr = normalize_spaces(narr)
     rewritten_narr, hitl = key_detector.rewrite(narr)
 
@@ -41,8 +40,19 @@ def parse(narr: str):
         output = swift_parser(rewritten_narr)
     else:
         output = all_parser(rewritten_narr)
-  
+
     return output, fmt
+
+def CTPTY(narr: str, amount: float | None = None):
+    final = {}
+    output, fmt = parse(narr)
+    res = extract_payor_payee(
+        output,
+        amount=amount
+    )
+    final["ctpty"] = res
+    final["parsed"] = output
+    return final, fmt
 
 if __name__=='__main__':
     pass

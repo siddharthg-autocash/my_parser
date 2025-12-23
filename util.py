@@ -119,12 +119,19 @@ def preClassify(text: str) -> str:
 # FORMAT DETECTOR 
 
 def detect_format(text: str) -> str:
+
     pc = preClassify(text)
-    if pc!='done':
+
+    # --- HOLD FORMATS ---
+    HOLD_LIST = {"peft", "avp_check", "avp_gen"}
+    hold_flag = pc in HOLD_LIST
+
+    # if pc is something else and not "done", return it normally
+    if pc != "done" and not hold_flag:
         return pc
 
+    # ----- SCORING SECTION -----
     t = normalize_for_detect(text)
-
     scores = {k: 0 for k in KEYWORDS}
 
     for fmt, items in KEYWORDS.items():
@@ -132,21 +139,26 @@ def detect_format(text: str) -> str:
             if keyword in t:
                 scores[fmt] += weight
 
-    # HARD GUARD: UETR implies SWIFT carriage
+    # HARD GUARD
     if "uetr" in t:
         return "swift"
 
     best = max(scores, key=lambda k: scores[k])
 
+    # scoring failed → return held format
     if scores[best] < 3:
+        if hold_flag:
+            return pc
         return "unknown"
 
+    # tie resolution
     tied = [k for k, v in scores.items() if v == scores[best]]
     for p in PRIORITY:
         if p in tied:
             return p
-        
+
     return best
+
 
 if __name__=='__main__':
     print(detect_format(input()))

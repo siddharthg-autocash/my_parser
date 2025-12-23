@@ -298,7 +298,10 @@
     "bbi",
     "bbk",
     "transaction ref no",
-    "fed ref no"
+    "fed ref no",
+    "ind name",
+    "instructing agent",
+    "debtor agent"
   ],
   "parsed": [
     "customer name",

@@ -1,9 +1,9 @@
 import re
+import json
 
 # ---------------------------------------------------------
 # NORMALIZATION
 # ---------------------------------------------------------
-
 def normalize_narrative(line: str) -> str:
     if not line:
         return ""
@@ -14,11 +14,11 @@ def normalize_narrative(line: str) -> str:
 
 
 # ---------------------------------------------------------
-# PAYPAL RECOGNISERS
+# PAYPAL RECOGNIZERS
 # ---------------------------------------------------------
-
 PAYPAL_RDC_RE = re.compile(
-    r"\bPAYPAL\b.*\bRDC\b.*\bDEP\s+CR\b"
+    r"\bPAYPAL\b.*\bRDC\b.*\bDEP\s+CR\b",
+    re.IGNORECASE
 )
 
 PAYPAL_ACH_RETURN_PARSE_RE = re.compile(
@@ -39,7 +39,6 @@ PAYPAL_ACH_RETURN_PARSE_RE = re.compile(
 # ---------------------------------------------------------
 # CLASSIFIER
 # ---------------------------------------------------------
-
 def classify_paypal(line: str) -> str | None:
     norm = normalize_narrative(line)
 
@@ -62,17 +61,18 @@ def classify_paypal(line: str) -> str | None:
 def parse_paypal_rdc(line: str) -> dict:
     norm = normalize_narrative(line)
 
-    date = None
+    # find 6-digit token for deposit code
+    deposit_code = None
     m = re.search(r"\b(\d{6})\b", norm)
     if m:
-        date = m.group(1)
+        deposit_code = m.group(1)
 
     return {
         "FORMAT": "PAYPAL_RDC_DEPOSIT",
         "PROCESSOR": "PAYPAL",
         "RAIL": "RDC",
         "DIRECTION": "CREDIT",
-        "DATE": date,
+        "deposit_code": deposit_code,
         "RAW": norm,
     }
 
@@ -114,5 +114,9 @@ def parse_paypal(line: str) -> dict | None:
 
     return None
 
+
+# ---------------------------------------------------------
+# CLI
+# ---------------------------------------------------------
 if __name__=='__main__':
-    print(parse_paypal(input()))
+    print(json.dumps(parse_paypal(input()), indent=2))

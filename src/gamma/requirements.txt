@@ -1,0 +1,13 @@
+pandas
+numpy
+fastapi
+uvicorn
+pydantic
+rapidfuzz
+psycopg2-binary
+jellyfish
+spacy
+# en_core_web_md download this for spacy
+
+openai
+ddgs

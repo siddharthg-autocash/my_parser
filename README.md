@@ -1,122 +1,117 @@
-# Bank Parser Engine
+# Project Gamma
 
-A **deterministic, rule-based bank transaction narrative parsing engine** that converts unstructured bank statement descriptions into **structured, auditable JSON**, with **counterparty (payer/payee) resolution**, **format detection**, and **API access**.
+Project Gamma is a **deterministic, rule-based bank transaction narrative parsing engine** that converts unstructured bank statement descriptions into **structured, auditable JSON**.
+
+It performs **format detection**, **rule-driven parsing**, **payer/payee (counterparty) extraction**, and **approval-based alias resolution**, and exposes results via **Python**, **FastAPI**, and an interactive **Streamlit UI**.
 
 ---
 
-## Project Structure (Relevant Files Only)
+## Key Characteristics
 
-```
-|
-|-- api.py
-|-- additionalFmts.py
-|-- extract_payer_payee.py
-|-- routines.py
-|-- script.py
-|-- util.py
-|
-|-- key_engine
-|   |-- canonical_keys.json
-|   |-- key_detector.py
-|
-|-- parsers
-|   |-- ach
-|   |-- all
-|   |-- avidpay
-|   |-- directdebit
-|   |-- disbursement
-|   |-- fundsTransfer
-|   |-- merchref
-|   |-- misc
-|   |-- paypal
-|   |-- processor_eft
-|   |-- remittance
-|   |-- spanish_types
-|   |-- swift
-|   |-- vendorpay
-|   |-- vendorpymt
-|   |-- wire
-```
+- Fully deterministic (no probabilistic behavior)
+- Rule-driven and explainable
+- Auditable outputs
+- Explicit approval for ambiguous entity resolution
+- Designed for continuous rule evolution
+
+---
+
+## Important Notes
+
+**Note 1**  
+The engine reliably extracts structured key–value data. Counterparty extraction is intentionally conservative and continues to evolve through rules and approvals.
+
+**Note 2**  
+If a narrative is parsed incorrectly, the correct fix is to **change or add rules**, not to tune probabilities or thresholds.
 
 ---
 
 ## Overview
 
-I built this engine to process raw transaction narratives and produce:
+Real-world bank transaction narratives are inconsistent, delimiter-heavy, and highly format-dependent.
 
-- A normalized narrative
-- A detected transaction format
-- Parsed key–value data
-- Resolved payer and payee (CTPTY) -> Need help/review on
-- Clear reasoning for every resolution decision
+Project Gamma was built to parse these narratives **without machine learning**, ensuring that:
+
+- every decision is explainable,
+- every failure is fixable through rules,
+- and no output is produced without justification.
+
+Given a raw narrative string, the engine produces:
+
+- a normalized narrative,
+- a detected transaction format,
+- structured key–value data,
+- resolved payer and payee (CTPTY),
+- optional canonical entity mapping via aliases.
 
 The architecture is intentionally **non-probabilistic**:
-- No machine learning
-- No silent assumptions
-- No uncontrolled schema drift
-- Every decision is rule-based and auditable
+
+- No ML models  
+- No silent assumptions  
+- No schema drift  
+- No hallucinated entities  
 
 ---
 
 ## What the Engine Does
 
-Given a raw transaction narrative string, the engine performs the following steps:
+For each transaction narrative, Project Gamma executes the following pipeline:
 
-1. **Normalize** the narrative
-2. **Identify** the transaction family
-3. **Parse** structured fields
-4. **Resolve counterparties (CTPTY)**
-5. **Expose results via CLI, Python API, or FastAPI**
+1. Normalize the narrative  
+2. Identify the transaction format  
+3. Parse structured fields  
+4. Extract payer and payee (CTPTY)  
+5. Optionally resolve canonical aliases (approval-based)  
+6. Expose results via CLI, Python, API, or UI  
 
-Each step is isolated, deterministic, and testable.
+Each stage is isolated, deterministic, and independently extensible.
 
 ---
 
 ## 1. Narrative Normalization
 
-All narratives are normalized before any classification or parsing.
+All narratives are normalized before classification or parsing.
 
 ### Normalization guarantees
 
-- Uppercases all text
-- Removes leading/trailing punctuation and pipes
-- Collapses multiple spaces
-- Normalizes delimiters (`: , = ; # \\`)
-- Produces regex-safe input
+- Uppercases text  
+- Removes leading/trailing punctuation  
+- Collapses repeated whitespace  
+- Normalizes delimiter spacing (`: , = ; # \\`)  
+- Produces regex-safe input  
 
-Illustrative examples (placeholders only):
+### Example transformations
 
 ```
 "   <TEXT>   "        → "<TEXT>"
-"|,<TEXT>,|"          → "<TEXT>"
+"│,<TEXT>,│"          → "<TEXT>"
 "A   B     C"         → "A B C"
 "KEY:VALUE"           → "KEY : VALUE"
-"ABC\\DEF"             → "ABC \\ DEF"
+"ABC\\DEF"            → "ABC \\ DEF"
 ```
 
 ---
 
 ## 2. Format Identification
 
-After normalization, the engine **deterministically identifies** the transaction family using ordered regex rules.
+After normalization, the engine deterministically identifies the transaction family using ordered rule checks.
 
-Supported categories include (non-exhaustive):
+Supported formats include (non-exhaustive):
 
-- ACH
-- WIRE
-- SWIFT
-- Vendor payments (multiple variants)
-- Disbursements
-- Processor EFT
-- PayPal transactions
-- Direct debit
-- Funds transfer / sweep transfer
-- Merchant reference
-- Web transfer
-- Card transactions
-- Invoice references
-- Language-specific patterns
-- Generic fallback (`ALL`)
+- ACH  
+- WIRE  
+- SWIFT  
+- Processor EFT  
+- Vendor payments  
+- Disbursements  
+- Direct debit  
+- Funds transfer / sweep  
+- PayPal  
+- Merchant reference  
+- Remittance  
+- Card / invoice / misc  
+- LATAM (language- and pattern-specific parsing)  
+- Generic fallback (`ALL`)  
 
 Each narrative is routed to **exactly one parser**.
 
@@ -124,102 +119,112 @@ Each narrative is routed to **exactly one parser**.
 
 ## 3. Structured Parsing
 
-Each format has a dedicated parser that extracts **facts only**.
+Each format has a dedicated parser responsible for **fact extraction only**.
 
 ### Parser guarantees
 
-- Extracts fields exactly as present
-- Preserves raw values
-- Does **not** infer payer/payee
-- Does **not** infer direction
-- Does **not** apply business logic
+- Extracts only what is explicitly present  
+- Preserves raw values  
+- Does not infer payer or payee  
+- Does not infer transaction direction  
+- Does not apply business logic  
 
 Typical extracted fields include:
-- Entity names
-- Account identifiers
-- Reference numbers
-- Dates and timestamps
-- Transaction codes
-- Bank identifiers
-- Free-form descriptions
 
-All parsers return a plain dictionary.
+- Entity names  
+- Account identifiers  
+- Reference numbers  
+- Dates and timestamps  
+- Transaction codes  
+- Bank identifiers  
+- Free-form descriptions  
+
+All parsers return **plain dictionaries**.
 
 ---
 
-## 4. Human-in-the-Loop (HITL) Key Evolution
+## 4. Key Evolution (Controlled Scope)
 
-HITL is intentionally limited in scope.
+Key evolution applies only to formats with strong delimiter behavior:
 
-It applies **only** to the following parser families:
+- ACH  
+- WIRE  
+- SWIFT  
+- ALL (generic fallback)  
 
-- ACH
-- WIRE
-- SWIFT
-- ALL (generic fallback)
+These formats allow **safe detection of new semantic keys**.
 
-### What HITL does
+### How key evolution works
 
-When a previously unseen **semantic key** is detected in these formats:
+- Unknown keys are detected at parse time  
+- Up to four words of left-context are proposed  
+- Delimiters define key boundaries  
+- Explicit approval is required  
+- Approved keys are persisted canonically  
 
-- The engine pauses execution
-- Suggests up to **four words of left-context**
-- Stops at known delimiters
-- Requests human approval
-- Persists approved keys in a canonical store
-
-Approved keys are reused automatically in future runs.
-
-### Fuzzy key matching
-
-For ACH / WIRE / SWIFT / ALL:
-
-- Keys are matched **case-insensitively**
-- Minor spacing and delimiter variations are tolerated
-- Canonical forms are learned once and reused
-
-Other formats use **fixed schemas only** and do not participate in HITL.
+Other formats use fixed schemas and do not participate in key evolution.
 
 ---
 
 ## 5. Counterparty Resolution (CTPTY)
 
-Counterparty resolution is handled after from parsing, in:
+Counterparty extraction runs **after parsing** and consumes structured parser output.
 
-This function resolves:
+It produces:
 
 - `payer`
 - `payee`
 - `amount`
 
-### Core principles
+### Resolution principles
 
-- Explicit semantic roles always win
-- Direction never overrides known facts
-- Case-insensitive key handling
-- Nested values are safely resolved
-- Output is always complete
+- Explicit semantic roles always win  
+- Account-like values are normalized as `BANK(<id>)`  
+- Partial information is preserved  
+- Inference is minimal and rule-bound  
+- Unknown roles remain unknown  
 
-### Resolution order
+No guessing. No hallucination.
 
-1. **Direct semantic mapping**
-   - Originator-type keys → payer
-   - Beneficiary-type keys → payee
+---
 
-2. **If both sides exist**
-   - Resolution stops immediately
+## 6. Alias Engine (Canonical Entity Resolution)
 
-3. **If only one entity exists**
-   - `amount < 0` → CUSTOMER paid
-   - `amount > 0` → CUSTOMER received
+The Alias Engine resolves raw payer/payee strings into canonical entities.
 
-4. **Counterparty / entity fallback**
-   - Used only if explicit roles are missing
+It operates **after CTPTY extraction** and is fully decoupled from parsing.
 
-5. **Final fallback**
-   - CUSTOMER → CUSTOMER
+### What the Alias Engine does
 
-Every resolution includes a **reason code** for auditability.
+- Normalizes raw counterparty strings  
+- Performs fuzzy matching against a master list  
+- Uses weighted similarity scoring  
+- Surfaces top-K candidates  
+- Requires explicit approval before persistence  
+- Stores aliases permanently for reuse  
+
+### What it does NOT do
+
+- It does not guess during parsing  
+- It does not modify raw parser output  
+- It does not run automatically without approval  
+
+Alias resolution is always **explicit and auditable**.
+
+---
+
+## 7. Streamlit Interface
+
+A Streamlit UI is provided for interactive review and approval.
+
+The UI allows users to:
+
+- Paste narratives or JSON input  
+- Run full parse + CTPTY extraction  
+- Review structured output  
+- Inspect top-K alias matches  
+- Manually approve or create aliases  
+- Persist canonical mappings safely  
 
 ---
 
@@ -227,13 +232,9 @@ Every resolution includes a **reason code** for auditability.
 
 ### CLI
 
-Used for debugging, inspection, and HITL approval:
-
 ```bash
 python script.py
 ```
-
----
 
 ### Python API
 
@@ -244,60 +245,66 @@ parsed, fmt = parse("<NARRATIVE>")
 result, fmt = CTPTY("<NARRATIVE>", amount=<SIGNED_AMOUNT>)
 ```
 
----
-
 ### FastAPI Service
-
-A production-ready FastAPI service is included.
 
 ```bash
 uvicorn api:app --reload
 ```
 
-Endpoint:
+### Streamlit Servie (Preferred)
 
-```
-POST /ctpty
-```
-
-Request body:
-
-```json
-{
-  "narrative": "<TRANSACTION_NARRATIVE>",
-  "amount": -12345.67
-}
+```bash
+PYTHONPATH=. streamlit run project_gamma/experiments/streamlit_app.py
 ```
 
 ---
 
 ## Installation
 
-All dependencies are declared in the project.
-
 ```bash
-pip install -r requirements
+pip install -r requirements.txt
 ```
 
 ---
 
-## What This Engine Is Not
+## Project Structure (Relevant Files Only)
 
-- No machine learning
-- No probabilistic inference
-- No silent assumptions
-- No uncontrolled schema evolution
-- No opaque decision making
+```
+project-gamma/
+│
+├── data/
+│
+├── docs/
+│
+├── experiments/
+│   └── streamlit_app.py
+│
+├── api/
+│   └── api.py
+│
+├── src/
+│   └── gamma/
+│       ├── key_engine/
+│       ├── alias_engine/
+│       ├── parsers/
+│       ├── extract_payer_payee.py
+│       ├── route.py
+│       ├── routine.py
+│       ├── util.py
+│       ├── script.py
+│       └── requirements.txt
+│    
+└── README.md
+```
 
 ---
 
 ## One-Line Summary
 
-A deterministic, human-controlled engine for parsing and resolving real-world bank transaction narratives into structured, auditable JSON, with production-safe counterparty resolution and API access.
+A deterministic, approval-driven engine for parsing bank transaction narratives into structured, auditable JSON with explainable counterparty extraction and alias resolution.
 
 ---
 
 ## Maintainer
 
-Siddharth Gautam
-
+Siddharth
